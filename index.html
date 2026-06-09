@@ -402,15 +402,13 @@ function App() {
   const [addEvent,setAddEvent]=useState(false);
 
   useEffect(()=>{
-    (async()=>{
-      try{const r=await window.storage.get('hsa-springbok-v12');if(r)setData(JSON.parse(r.value));}catch{}
-      setLoaded(true);
-    })();
+    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e/latest',{headers:{'X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'}}
+    ).then(r=>r.json()).then(j=>{if(j.record)setData(j.record);}).catch(()=>{}).finally(()=>setLoaded(true));
   },[]);
 
   useEffect(()=>{
     if(!loaded)return;
-    window.storage.set('hsa-springbok-v12',JSON.stringify(data)).catch(()=>{});
+    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e',{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'},body:JSON.stringify(data)}).catch(()=>{});
   },[data,loaded]);
 
   const upGame=(id,fn)=>setData(d=>({...d,games:d.games.map(g=>g.id===id?fn(g):g)}));
