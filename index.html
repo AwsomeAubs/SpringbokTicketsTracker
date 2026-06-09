@@ -115,7 +115,26 @@ function AllocModal({target,onSave,onClose}) {
 }
 
 /* ── AllocRow ── */
-function AllocRow({alloc,accentColor,onToggle,onDelete}) {
+function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}) {
+  const [editing,setEditing]=useState(false);
+  const [form,setForm]=useState({manager:alloc.manager,dept:alloc.dept,qty:alloc.qty,notes:alloc.notes||''});
+  if(editing) return (
+    <div style={{background:CARD2,border:`1px solid ${accentColor}44`,borderRadius:8,padding:'10px 12px',marginBottom:6}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+        {[{label:'Manager',key:'manager'},{label:'Department',key:'dept'},{label:'Quantity',key:'qty',type:'number'},{label:'Notes',key:'notes'}].map(f=>(
+          <div key={f.key}>
+            <div style={{fontSize:10,color:DIM,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{f.label}</div>
+            <input type={f.type||'text'} value={form[f.key]} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
+              style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:5,padding:'5px 8px',fontSize:13}}/>
+          </div>
+        ))}
+      </div>
+      <div style={{display:'flex',gap:8}}>
+        <button onClick={()=>{onEdit(form);setEditing(false);}} style={{background:accentColor,color:'#fff',fontWeight:700,fontSize:12,padding:'5px 14px',borderRadius:6,border:'none',cursor:'pointer'}}>Save</button>
+        <button onClick={()=>setEditing(false)} style={{background:CARD,color:DIM,fontWeight:600,fontSize:12,padding:'5px 14px',borderRadius:6,border:`1px solid ${BORDER}`,cursor:'pointer'}}>Cancel</button>
+      </div>
+    </div>
+  );
   return (
     <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',background:alloc.confirmed?'#22c55e0d':BG,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,borderRadius:8,marginBottom:5}}>
       <span style={{fontSize:18}}>{alloc.confirmed?'✅':'⏳'}</span>
@@ -124,16 +143,19 @@ function AllocRow({alloc,accentColor,onToggle,onDelete}) {
         <div style={{fontSize:13,color:DIM}}>{alloc.dept}{alloc.notes?` · ${alloc.notes}`:''}</div>
       </div>
       <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:800,color:accentColor,minWidth:24,textAlign:'right'}}>{alloc.qty}</div>
-      <button onClick={onToggle} style={{background:alloc.confirmed?'#22c55e22':CARD2,color:alloc.confirmed?'#22c55e':DIM,fontSize:13,fontWeight:600,padding:'4px 10px',borderRadius:5,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,cursor:'pointer',whiteSpace:'nowrap'}}>
-        {alloc.confirmed?'Confirmed ✓':'Confirm?'}
-      </button>
-      <button onClick={onDelete} style={{background:'#ef444422',color:'#ef4444',fontSize:15,padding:'3px 9px',borderRadius:5,fontWeight:700,border:'none',cursor:'pointer'}}>Remove</button>
+      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+        <button onClick={onToggle} style={{background:alloc.confirmed?'#22c55e22':CARD2,color:alloc.confirmed?'#22c55e':DIM,fontSize:12,fontWeight:600,padding:'4px 10px',borderRadius:5,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,cursor:'pointer',whiteSpace:'nowrap'}}>
+          {alloc.confirmed?'Confirmed ✓':'Confirm?'}
+        </button>
+        <button onClick={()=>setEditing(true)} style={{background:'#1d6fa422',color:'#4da6e8',fontSize:12,fontWeight:600,padding:'4px 10px',borderRadius:5,border:'1px solid #1d6fa444',cursor:'pointer'}}>Edit</button>
+        <button onClick={onDelete} style={{background:'#ef444422',color:'#ef4444',fontSize:12,padding:'4px 10px',borderRadius:5,fontWeight:700,border:'1px solid #ef444433',cursor:'pointer'}}>Remove</button>
+      </div>
     </div>
   );
 }
 
 /* ── CatSection ── */
-function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc}) {
+function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onEditAlloc}) {
   const total=parseInt(data.total)||0, allocated=getAlloc(data), unassigned=total-allocated;
   const pct=total>0?Math.min(100,(allocated/total)*100):0;
   return (
@@ -155,14 +177,15 @@ function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAl
       {(data.allocations||[]).map(a=>(
         <AllocRow key={a.id} alloc={a} accentColor={cat.color}
           onToggle={()=>onToggleConfirm(gameId,cat.id,a.id)}
-          onDelete={()=>onDeleteAlloc(gameId,cat.id,a.id)}/>
+          onDelete={()=>onDeleteAlloc(gameId,cat.id,a.id)}
+          onEdit={(form)=>onEditAlloc(gameId,cat.id,a.id,form)}/>
       ))}
     </div>
   );
 }
 
 /* ── GameCard ── */
-function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType}) {
+function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType,onEditAlloc}) {
   const [editingType,setEditingType]=useState(false);
   const [typeVal,setTypeVal]=useState(game.type||'');
   const days=daysUntil(game.date), past=days<0;
@@ -194,7 +217,7 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
             {past&&<span style={{background:'#37415122',color:'#6b7280',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>COMPLETED</span>}
           </div>
           <div style={{fontSize:16,color:DIM,marginTop:4}}>📅 {fmtDate(game.date)} &nbsp;·&nbsp; 📍 {game.location}</div>
-          <div style={{fontSize:14,color:DIM,marginTop:2}}>{totalAlloc}/{totalTix} tickets assigned</div>
+          <div style={{fontSize:17,fontWeight:700,color:totalAlloc===totalTix&&totalTix>0?'#22c55e':totalTix>0?'#f59e0b':DIM,marginTop:4}}>{totalAlloc}/{totalTix} tickets assigned {totalAlloc===totalTix&&totalTix>0?'✓':totalTix>0?'⚠':''}</div>
           {/* Category pills */}
           <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
             {CATS.map(cat=>{
@@ -211,6 +234,25 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
               );
             })}
           </div>
+          {/* Mini summary of assigned tickets */}
+          {CATS.some(c=>(game.categories[c.id].allocations||[]).length>0)&&(
+            <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #ffffff0a'}}>
+              {CATS.map(cat=>{
+                const allocs=game.categories[cat.id].allocations||[];
+                if(allocs.length===0) return null;
+                return (
+                  <div key={cat.id} style={{marginBottom:3,display:'flex',flexWrap:'wrap',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:12,color:cat.color,fontWeight:700}}>{cat.icon}</span>
+                    {allocs.map((a,i)=>(
+                      <span key={a.id} style={{fontSize:13,color:a.confirmed?'#22c55e':DIM,fontWeight:a.confirmed?600:400}}>
+                        {a.manager} <strong style={{color:cat.color}}>({a.qty})</strong>{a.confirmed?' ✓':''}{i<allocs.length-1?',':''}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div style={{textAlign:'center',minWidth:90}}>
           {game.match?.toLowerCase().includes('scotland')&&<div style={{fontSize:14,fontWeight:900,color:'#ef4444',letterSpacing:1,marginBottom:4,whiteSpace:'nowrap'}}>⭐ LEAD THE BOKS ⭐</div>}
@@ -230,8 +272,36 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
             {CATS.map(cat=>(
               <CatSection key={cat.id} cat={cat} data={game.categories[cat.id]} gameId={game.id}
                 onSetTotal={onSetTotal} onAdd={()=>onAdd(game.id,cat.id)}
-                onToggleConfirm={onToggleConfirm} onDeleteAlloc={onDeleteAlloc}/>
+                onToggleConfirm={onToggleConfirm} onDeleteAlloc={onDeleteAlloc} onEditAlloc={onEditAlloc}/>
             ))}
+          </div>
+          {/* Summary bar */}
+          <div style={{marginTop:14,background:'#0d1117',borderRadius:10,padding:'12px 16px',border:'1px solid #30363d'}}>
+            <div style={{fontSize:13,color:'#8b949e',marginBottom:8,textTransform:'uppercase',letterSpacing:0.8,fontWeight:700}}>Allocation Summary</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:12}}>
+              {CATS.map(cat=>{
+                const tot=parseInt(game.categories[cat.id].total)||0;
+                const alloc=getAlloc(game.categories[cat.id]);
+                if(tot===0) return null;
+                return (
+                  <div key={cat.id} style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 14px',border:`1px solid ${cat.color}33`}}>
+                    <span style={{fontSize:15}}>{cat.icon}</span>
+                    <div>
+                      <div style={{fontSize:11,color:cat.color,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>{cat.label.split('·')[1]?.trim()||cat.label}</div>
+                      <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:900,color:alloc===tot?'#22c55e':'#f59e0b'}}>{alloc}/{tot}</div>
+                      <div style={{fontSize:11,color:'#8b949e'}}>{alloc===tot?'✓ Complete':'⚠ '+`${tot-alloc} remaining`}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 14px',border:`1px solid #ffffff22`,marginLeft:'auto'}}>
+                <div style={{textAlign:'center'}}>
+                  <div style={{fontSize:11,color:'#8b949e',fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>Total</div>
+                  <div style={{fontFamily:"'Barlow Condensed'",fontSize:28,fontWeight:900,color:totalAlloc===totalTix&&totalTix>0?'#22c55e':'#f59e0b'}}>{totalAlloc}/{totalTix}</div>
+                  <div style={{fontSize:11,color:'#8b949e'}}>{totalAlloc===totalTix&&totalTix>0?'✓ All assigned':'tickets assigned'}</div>
+                </div>
+              </div>
+            </div>
           </div>
           <div style={{marginTop:14,display:'flex',justifyContent:'flex-end'}}>
             <button onClick={onDelete} style={{background:'none',color:'#ef444488',fontWeight:600,fontSize:12,padding:'4px 8px',border:'none',cursor:'pointer',textDecoration:'underline',letterSpacing:0.3}}>Delete this game</button>
@@ -331,22 +401,16 @@ function App() {
   const [addGame,setAddGame]=useState(false);
   const [addEvent,setAddEvent]=useState(false);
 
-  const BIN_ID  = '6a27076dda38895dfe9b707e';
-  const API_KEY = '$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi';
-  const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-
   useEffect(()=>{
-    fetch(BIN_URL+'/latest',{headers:{'X-Master-Key':API_KEY}})
-      .then(r=>r.json())
-      .then(j=>{ if(j.record) setData(j.record); })
-      .catch(()=>{})
-      .finally(()=>setLoaded(true));
+    (async()=>{
+      try{const r=await window.storage.get('hsa-springbok-v12');if(r)setData(JSON.parse(r.value));}catch{}
+      setLoaded(true);
+    })();
   },[]);
 
   useEffect(()=>{
     if(!loaded)return;
-    fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(data)})
-      .catch(()=>{});
+    window.storage.set('hsa-springbok-v12',JSON.stringify(data)).catch(()=>{});
   },[data,loaded]);
 
   const upGame=(id,fn)=>setData(d=>({...d,games:d.games.map(g=>g.id===id?fn(g):g)}));
@@ -354,6 +418,7 @@ function App() {
   const upViewing=(id,fn)=>setData(d=>({...d,viewing:(d.viewing||[]).map(v=>v.id===id?fn(v):v)}));
 
   const updateGameType=(gId,val)=>upGame(gId,g=>({...g,type:val}));
+  const editAllocGame=(gId,cId,aId,form)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],allocations:g.categories[cId].allocations.map(a=>a.id===aId?{...a,...form}:a)}}}));
   const updateEventType=(eId,val)=>upEvent(eId,e=>({...e,type:val}));
   const updateViewingType=(vId,val)=>upViewing(vId,v=>({...v,type:val}));
   const setTotal=(gId,cId,val)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],total:val}}}));
@@ -441,7 +506,7 @@ function App() {
                   onToggle={()=>setExpanded(expanded===game.id?null:game.id)}
                   onSetTotal={setTotal} onAdd={(gId,cId)=>setModal({gameId:gId,catId:cId})}
                   onToggleConfirm={togConfGame} onDeleteAlloc={delAllocGame}
-                  onDelete={()=>setData(d=>({...d,games:d.games.filter(g=>g.id!==game.id)}))} onUpdateType={updateGameType}/>
+                  onDelete={()=>setData(d=>({...d,games:d.games.filter(g=>g.id!==game.id)}))} onUpdateType={updateGameType} onEditAlloc={editAllocGame}/>
               ))}
             </div>
           </div>
