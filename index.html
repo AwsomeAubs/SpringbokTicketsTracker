@@ -16,7 +16,7 @@
     ::-webkit-scrollbar-track { background: #0d1117; }
     ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
     input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
-    input, button { font-family: 'DM Sans', sans-serif; }
+    input, button, select { font-family: 'DM Sans', sans-serif; }
   </style>
 </head>
 <body>
@@ -24,90 +24,86 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-const GRN='#00843D', GOLD='#FFB612', BG='#0d1117', CARD='#161b22', CARD2='#1f2430', BORDER='#30363d', TEXT='#e6edf3', DIM='#8b949e', ORANGE='#f97316';
+const GRN='#00843D',GOLD='#FFB612',BG='#0d1117',CARD='#161b22',CARD2='#1f2430',BORDER='#30363d',TEXT='#e6edf3',DIM='#8b949e',ORANGE='#f97316';
 
-const CATS = [
-  { id:'stadium',     label:'Contractual · In-Stadium', color:'#00843D', icon:'🎫' },
-  { id:'hospitality', label:'Contractual · Hospitality', color:'#1d6fa4', icon:'🥂' },
-  { id:'purchased',   label:'Purchased Tickets',         color:'#9333ea', icon:'💳' },
-  { id:'special',     label:'Individual / Special Paid', color:'#ea8c33', icon:'⭐' },
+const CATS=[
+  {id:'stadium',    label:'Contractual · In-Stadium', color:'#00843D', icon:'🎫'},
+  {id:'hospitality',label:'Contractual · Hospitality', color:'#1d6fa4', icon:'🥂'},
+  {id:'purchased',  label:'Purchased Tickets',         color:'#9333ea', icon:'💳'},
+  {id:'special',    label:'Individual / Special Paid', color:'#ea8c33', icon:'⭐'},
 ];
 
-const TYPE_COLORS = {
-  'nations championship':            { bg:'#1d6fa422', color:'#4da6e8', label:'NATIONS CHAMP' },
-  'yesplay cup':                     { bg:'#0d948822', color:'#2dd4bf', label:'FRIENDLY' },
-  "rugby's greatest rivalry (rgr)":  { bg:'#f9731622', color:'#f97316', label:'RGR' },
-  'school games':                    { bg:'#7c3aed22', color:'#a78bfa', label:'SCHOOL GAMES' },
-  'craven week':                     { bg:'#7c3aed22', color:'#a78bfa', label:'CRAVEN WEEK' },
-  'charity dinner':                  { bg:'#db277722', color:'#f472b6', label:'CHARITY' },
-  'golf day':                        { bg:'#16a34a22', color:'#4ade80', label:'GOLF DAY' },
+const TYPE_COLORS={
+  'nations championship':           {bg:'#1d6fa422',color:'#4da6e8'},
+  'yesplay cup':                    {bg:'#0d948822',color:'#2dd4bf'},
+  "rugby's greatest rivalry (rgr)": {bg:'#f9731622',color:'#f97316'},
+  'nations championship (sevens)':  {bg:'#7c3aed22',color:'#a78bfa'},
+  'school games':                   {bg:'#7c3aed22',color:'#a78bfa'},
+  'craven week':                    {bg:'#7c3aed22',color:'#a78bfa'},
+  'charity dinner':                 {bg:'#db277722',color:'#f472b6'},
+  'golf day':                       {bg:'#16a34a22',color:'#4ade80'},
+  'world rugby':                    {bg:'#dc262622',color:'#fca5a5'},
 };
-const getTypeStyle = (type='') => {
-  const key = type.toLowerCase();
-  for (const [k,v] of Object.entries(TYPE_COLORS)) { if(key.includes(k)) return v; }
-  return { bg:'#00843D22', color:'#00843D', label:type };
-};
+const getTypeStyle=(t='')=>{const k=t.toLowerCase();for(const[key,v] of Object.entries(TYPE_COLORS)){if(k.includes(key))return v;}return{bg:GRN+'22',color:GRN};};
 
-const mkCats = (ov={}) => Object.fromEntries(CATS.map(c=>[c.id,{total:'',allocations:[],breakdown:'',...(ov[c.id]||{})}]));
-const uid = () => Math.random().toString(36).slice(2,9);
-const daysUntil = d => Math.ceil((new Date(d)-new Date().setHours(0,0,0,0))/86400000);
-const getAlloc = cat => (cat.allocations||[]).reduce((s,a)=>s+(parseInt(a.qty)||0),0);
-const fmtDate = d => new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+const mkCats=(ov={})=>Object.fromEntries(CATS.map(c=>[c.id,{total:'',allocations:[],breakdown:'',...(ov[c.id]||{})}]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const daysUntil=d=>Math.ceil((new Date(d)-new Date().setHours(0,0,0,0))/86400000);
+const getAlloc=cat=>(cat.allocations||[]).reduce((s,a)=>s+(parseInt(a.qty)||0),0);
+const fmtDate=d=>new Date(d+'T00:00:00').toLocaleDateString('en-ZA',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
 
-const INIT_GAMES = [
-  { id:'g1', date:'2026-06-20', match:'Springboks vs Barbarians', location:'Nelson Mandela Bay Stadium, Gqeberha', type:'YesPlay Cup (Friendly)',
-    categories: mkCats({ stadium:{total:'0',breakdown:'FOC: N/A'}, hospitality:{total:'0',breakdown:'Suite FOC: N/A'}, purchased:{total:'20',breakdown:'RTB · Cat A: 20'}, special:{total:'10',breakdown:'10 shared hospitality to purchase'} }) },
-  { id:'g2', date:'2026-07-04', match:'Springboks vs England', location:'Ellis Park, Johannesburg', type:'Nations Championship',
-    categories: mkCats({ stadium:{total:'10',breakdown:'FOC · Cat A: 10'}, hospitality:{total:'13',breakdown:'Suite FOC: 1 (inc F&B) · Shared FOC: 12'}, purchased:{total:'20',breakdown:'RTB · Cat A: 10 | Cat C: 20'}, special:{total:'0',breakdown:''} }) },
-  { id:'g3', date:'2026-07-11', match:'Springboks vs Scotland', location:'Loftus Versfeld, Pretoria', type:'Nations Championship', leadTheBoks:true,
-    categories: mkCats({ stadium:{total:'10',breakdown:'FOC · Cat A: 10'}, hospitality:{total:'1',breakdown:'Suite FOC: 1 (inc F&B)'}, purchased:{total:'30',breakdown:'RTB · Cat A: 10 | Cat C: 30'}, special:{total:'0',breakdown:''} }) },
-  { id:'g4', date:'2026-07-18', match:'Springboks vs Wales', location:'Kings Park, Durban', type:'Nations Championship',
-    categories: mkCats({ stadium:{total:'10',breakdown:'FOC · Cat A: 10'}, hospitality:{total:'1',breakdown:'Suite FOC: 1 (inc F&B)'}, purchased:{total:'43',breakdown:'RTB · Cat A: 10 | Cat B: 3 | Cat C: 40'}, special:{total:'10',breakdown:'Away tickets still to be allocated (x10)'} }) },
-  { id:'g5', date:'2026-08-22', match:'Springboks vs All Blacks (TM1)',            location:'Ellis Park, Johannesburg',                type:"Rugby's Greatest Rivalry (RGR)", categories:mkCats() },
-  { id:'g6', date:'2026-08-29', match:'Springboks vs All Blacks (TM2)',            location:'DHL Stadium, Cape Town',                  type:"Rugby's Greatest Rivalry (RGR)", categories:mkCats() },
-  { id:'g7', date:'2026-09-05', match:'Springboks vs All Blacks (TM3)',            location:'FNB Stadium, Johannesburg',               type:"Rugby's Greatest Rivalry (RGR)", categories:mkCats() },
-  { id:'g8', date:'2026-09-12', match:'Springboks vs All Blacks (TM4)',            location:'M&T Bank Stadium, Baltimore (USA)',       type:"Rugby's Greatest Rivalry (RGR)", categories:mkCats() },
-  { id:'g9', date:'2026-12-05', match:'Springbok Sevens',                           location:'DHL Stadium, Cape Town',                  type:'Nations Championship (Sevens)',  categories:mkCats() },
+const INIT_GAMES=[
+  {id:'g1',date:'2026-06-20',match:'Springboks vs Barbarians',location:'Nelson Mandela Bay Stadium, Gqeberha',type:'YesPlay Cup (Friendly)',
+   categories:mkCats({stadium:{total:'0',breakdown:'FOC: N/A'},hospitality:{total:'0',breakdown:'Suite FOC: N/A'},purchased:{total:'20',breakdown:'RTB · Cat A: 20'},special:{total:'10',breakdown:'10 shared hospitality to purchase'}})},
+  {id:'g2',date:'2026-07-04',match:'Springboks vs England',location:'Ellis Park, Johannesburg',type:'Nations Championship',
+   categories:mkCats({stadium:{total:'10',breakdown:'FOC · Cat A: 10'},hospitality:{total:'13',breakdown:'Suite FOC: 1 (inc F&B) · Shared FOC: 12'},purchased:{total:'20',breakdown:'RTB · Cat A: 10 | Cat C: 20'},special:{total:'0',breakdown:''}})},
+  {id:'g3',date:'2026-07-11',match:'Springboks vs Scotland',location:'Loftus Versfeld, Pretoria',type:'Nations Championship',
+   categories:mkCats({stadium:{total:'10',breakdown:'FOC · Cat A: 10'},hospitality:{total:'1',breakdown:'Suite FOC: 1 (inc F&B)'},purchased:{total:'30',breakdown:'RTB · Cat A: 10 | Cat C: 30'},special:{total:'0',breakdown:''}})},
+  {id:'g4',date:'2026-07-18',match:'Springboks vs Wales',location:'Kings Park, Durban',type:'Nations Championship',
+   categories:mkCats({stadium:{total:'10',breakdown:'FOC · Cat A: 10'},hospitality:{total:'1',breakdown:'Suite FOC: 1 (inc F&B)'},purchased:{total:'43',breakdown:'RTB · Cat A: 10 | Cat B: 3 | Cat C: 40'},special:{total:'10',breakdown:'Away tickets still to be allocated (x10)'}})},
+  {id:'g5',date:'2026-08-22',match:'Springboks vs All Blacks (TM1)',location:'Ellis Park, Johannesburg',type:"Rugby's Greatest Rivalry (RGR)",categories:mkCats()},
+  {id:'g6',date:'2026-08-29',match:'Springboks vs All Blacks (TM2)',location:'DHL Stadium, Cape Town',type:"Rugby's Greatest Rivalry (RGR)",categories:mkCats()},
+  {id:'g7',date:'2026-09-05',match:'Springboks vs All Blacks (TM3)',location:'FNB Stadium, Johannesburg',type:"Rugby's Greatest Rivalry (RGR)",categories:mkCats()},
+  {id:'g8',date:'2026-09-12',match:'Springboks vs All Blacks (TM4)',location:'M&T Bank Stadium, Baltimore (USA)',type:"Rugby's Greatest Rivalry (RGR)",categories:mkCats()},
+  {id:'g9',date:'2026-12-05',match:'Springbok Sevens',location:'DHL Stadium, Cape Town',type:'Nations Championship (Sevens)',categories:mkCats()},
 ];
 
-const INIT_EVENTS = [
-  { id:'e1', date:'2026-06-23', name:'An Evening with the Springboks', type:'Charity Dinner', location:'The Forum Hyde Park, Sandton', total:'', notes:'R3800/ticket · 17:30 for 18:00 · Smart Casual · Dinner, Drinks, Discussion & Auction · Presented by Betway (Players Fund)', allocations:[] },
-  { id:'e2', date:'2026-06-13', name:'Golf Day', type:'Golf Day', location:'TBC', total:'', notes:'RSVP deadline: 5 June via portal', allocations:[] },
-  { id:'e3', date:'2026-12-07', name:'World Rugby Event', type:'World Rugby', location:'Cape Town', total:'', notes:'December event — date and venue to be confirmed', allocations:[] },
+const INIT_EVENTS=[
+  {id:'e1',date:'2026-06-23',name:'An Evening with the Springboks',type:'Charity Dinner',location:'The Forum Hyde Park, Sandton',total:'',notes:'R3800/ticket · 17:30 for 18:00 · Smart Casual · Dinner, Drinks, Discussion & Auction · Betway/Players Fund',allocations:[]},
+  {id:'e2',date:'2026-06-13',name:'Golf Day',type:'Golf Day',location:'TBC',total:'',notes:'RSVP deadline: 5 June via portal',allocations:[]},
+  {id:'e3',date:'2026-12-07',name:'World Rugby Event',type:'World Rugby',location:'Cape Town',total:'',notes:'December event — date and venue to be confirmed',allocations:[]},
 ];
 
-const INIT_VIEWING = [
-  { id:'v1', date:'2026-08-22', match:'Springboks vs All Blacks (RGR G1)', location:'TBC – Joburg area', tickets:'20', allocations:[], notes:'Big screen remote viewing · Dealerships' },
-  { id:'v2', date:'2026-08-29', match:'Springboks vs All Blacks (RGR G2)', location:'TBC – Cape Town area', tickets:'20', allocations:[], notes:'Big screen remote viewing · Dealerships' },
-  { id:'v3', date:'2026-09-05', match:'Springboks vs All Blacks (RGR G3)', location:'TBC – Bloemfontein area', tickets:'20', allocations:[], notes:'Big screen remote viewing · Dealerships' },
+const INIT_VIEWING=[
+  {id:'v1',date:'2026-08-22',match:'Springboks vs All Blacks (TM1)',location:'TBC – Joburg area',tickets:'20',allocations:[],notes:'Big screen remote viewing · Dealerships'},
+  {id:'v2',date:'2026-08-29',match:'Springboks vs All Blacks (TM2)',location:'TBC – Cape Town area',tickets:'20',allocations:[],notes:'Big screen remote viewing · Dealerships'},
+  {id:'v3',date:'2026-09-05',match:'Springboks vs All Blacks (TM3)',location:'TBC – Bloemfontein area',tickets:'20',allocations:[],notes:'Big screen remote viewing · Dealerships'},
 ];
 
 /* ── AllocModal ── */
-function AllocModal({target,onSave,onClose}) {
+function AllocModal({target,onSave,onClose}){
   const [form,setForm]=useState({manager:'',dept:'',qty:'',notes:''});
   const cat=target?.catId?CATS.find(c=>c.id===target.catId):null;
   const accent=cat?cat.color:target?.viewingId?ORANGE:GOLD;
   const title=cat?`${cat.icon}  ${cat.label}`:target?.viewingId?'📺  Allocate to Dealership':'⭐  Allocate Invitation';
-  return (
+  return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
       <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:28,width:440,maxWidth:'94vw'}}>
         <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:800,letterSpacing:1,marginBottom:20,color:accent}}>{title}</div>
         {[{label:'Manager / Recipient',key:'manager',placeholder:'e.g. Samantha Bret',type:'text'},
-          {label:'Department / Purpose',key:'dept',placeholder:'e.g. Fleet, Client Entertainment',type:'text'},
+          {label:'Department / Purpose',key:'dept',placeholder:'e.g. Fleet',type:'text'},
           {label:'Quantity',key:'qty',placeholder:'0',type:'number'},
           {label:'Notes (optional)',key:'notes',placeholder:'Any extra detail...',type:'text'}].map(f=>(
           <div key={f.key} style={{marginBottom:14}}>
             <div style={{fontSize:12,color:DIM,marginBottom:5,textTransform:'uppercase',letterSpacing:0.8}}>{f.label}</div>
-            <input type={f.type} placeholder={f.placeholder} value={form[f.key]}
-              onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
+            <input type={f.type} placeholder={f.placeholder} value={form[f.key]} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
               style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:8,padding:'9px 12px',fontSize:14}}/>
           </div>
         ))}
         <div style={{display:'flex',gap:10,marginTop:22}}>
           <button onClick={()=>{if(form.manager&&form.qty)onSave({id:uid(),...form,confirmed:false});}}
             style={{flex:1,background:accent,color:'#fff',fontWeight:700,fontSize:14,padding:'11px',borderRadius:9,border:'none',cursor:'pointer'}}>Allocate</button>
-          <button onClick={onClose}
-            style={{flex:1,background:CARD2,color:DIM,fontWeight:600,fontSize:14,padding:'11px',borderRadius:9,border:`1px solid ${BORDER}`,cursor:'pointer'}}>Cancel</button>
+          <button onClick={onClose} style={{flex:1,background:CARD2,color:DIM,fontWeight:600,fontSize:14,padding:'11px',borderRadius:9,border:`1px solid ${BORDER}`,cursor:'pointer'}}>Cancel</button>
         </div>
       </div>
     </div>
@@ -115,15 +111,15 @@ function AllocModal({target,onSave,onClose}) {
 }
 
 /* ── AllocRow ── */
-function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}) {
+function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}){
   const [editing,setEditing]=useState(false);
   const [form,setForm]=useState({manager:alloc.manager,dept:alloc.dept,qty:alloc.qty,notes:alloc.notes||''});
-  if(editing) return (
+  if(editing) return(
     <div style={{background:CARD2,border:`1px solid ${accentColor}44`,borderRadius:8,padding:'10px 12px',marginBottom:6}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
         {[{label:'Manager',key:'manager'},{label:'Department',key:'dept'},{label:'Quantity',key:'qty',type:'number'},{label:'Notes',key:'notes'}].map(f=>(
           <div key={f.key}>
-            <div style={{fontSize:10,color:DIM,marginBottom:3,textTransform:'uppercase',letterSpacing:0.5}}>{f.label}</div>
+            <div style={{fontSize:10,color:DIM,marginBottom:3,textTransform:'uppercase'}}>{f.label}</div>
             <input type={f.type||'text'} value={form[f.key]} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
               style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:5,padding:'5px 8px',fontSize:13}}/>
           </div>
@@ -135,7 +131,7 @@ function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}) {
       </div>
     </div>
   );
-  return (
+  return(
     <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 10px',background:alloc.confirmed?'#22c55e0d':BG,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,borderRadius:8,marginBottom:5}}>
       <span style={{fontSize:18}}>{alloc.confirmed?'✅':'⏳'}</span>
       <div style={{flex:1,minWidth:0}}>
@@ -144,9 +140,7 @@ function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}) {
       </div>
       <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:800,color:accentColor,minWidth:24,textAlign:'right'}}>{alloc.qty}</div>
       <div style={{display:'flex',flexDirection:'column',gap:4}}>
-        <button onClick={onToggle} style={{background:alloc.confirmed?'#22c55e22':CARD2,color:alloc.confirmed?'#22c55e':DIM,fontSize:12,fontWeight:600,padding:'4px 10px',borderRadius:5,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,cursor:'pointer',whiteSpace:'nowrap'}}>
-          {alloc.confirmed?'Confirmed ✓':'Confirm?'}
-        </button>
+        <button onClick={onToggle} style={{background:alloc.confirmed?'#22c55e22':CARD2,color:alloc.confirmed?'#22c55e':DIM,fontSize:12,fontWeight:600,padding:'4px 10px',borderRadius:5,border:`1px solid ${alloc.confirmed?'#22c55e44':BORDER}`,cursor:'pointer',whiteSpace:'nowrap'}}>{alloc.confirmed?'Confirmed ✓':'Confirm?'}</button>
         <button onClick={()=>setEditing(true)} style={{background:'#1d6fa422',color:'#4da6e8',fontSize:12,fontWeight:600,padding:'4px 10px',borderRadius:5,border:'1px solid #1d6fa444',cursor:'pointer'}}>Edit</button>
         <button onClick={onDelete} style={{background:'#ef444422',color:'#ef4444',fontSize:12,padding:'4px 10px',borderRadius:5,fontWeight:700,border:'1px solid #ef444433',cursor:'pointer'}}>Remove</button>
       </div>
@@ -155,10 +149,10 @@ function AllocRow({alloc,accentColor,onToggle,onDelete,onEdit}) {
 }
 
 /* ── CatSection ── */
-function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onEditAlloc}) {
-  const total=parseInt(data.total)||0, allocated=getAlloc(data), unassigned=total-allocated;
+function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onEditAlloc}){
+  const total=parseInt(data.total)||0,allocated=getAlloc(data),unassigned=total-allocated;
   const pct=total>0?Math.min(100,(allocated/total)*100):0;
-  return (
+  return(
     <div style={{background:BG,border:`1px solid ${unassigned>0&&total>0?cat.color+'44':BORDER}`,borderRadius:10,padding:'12px 14px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
         <span style={{fontSize:13,fontWeight:700,color:cat.color,textTransform:'uppercase',letterSpacing:0.6}}>{cat.icon} {cat.label}</span>
@@ -166,8 +160,7 @@ function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAl
       </div>
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:total>0?8:6}}>
         <span style={{fontSize:14,color:DIM}}>Total:</span>
-        <input type="number" value={data.total} min="0" placeholder="0"
-          onChange={e=>onSetTotal(gameId,cat.id,e.target.value)}
+        <input type="number" value={data.total} min="0" placeholder="0" onChange={e=>onSetTotal(gameId,cat.id,e.target.value)}
           style={{width:62,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:5,padding:'4px 8px',fontSize:14}}/>
         {total>0&&unassigned>0&&<span style={{color:'#f59e0b',fontSize:13,fontWeight:700}}>⚠ {unassigned} unassigned</span>}
         {total>0&&unassigned===0&&<span style={{color:'#22c55e',fontSize:13,fontWeight:700}}>✓ All assigned</span>}
@@ -185,10 +178,10 @@ function CatSection({cat,data,gameId,onSetTotal,onAdd,onToggleConfirm,onDeleteAl
 }
 
 /* ── GameCard ── */
-function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType,onEditAlloc}) {
+function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType,onEditAlloc}){
   const [editingType,setEditingType]=useState(false);
   const [typeVal,setTypeVal]=useState(game.type||'');
-  const days=daysUntil(game.date), past=days<0;
+  const days=daysUntil(game.date),past=days<0;
   const isRGR=game.type?.toLowerCase().includes("greatest rivalry");
   const totalTix=CATS.reduce((s,c)=>s+(parseInt(game.categories[c.id].total)||0),0);
   const totalAlloc=CATS.reduce((s,c)=>s+getAlloc(game.categories[c.id]),0);
@@ -196,73 +189,65 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
   const urgent=hasUnassigned&&!past&&days<=14;
   const pct=totalTix>0?Math.min(100,(totalAlloc/totalTix)*100):0;
   const dayColor=days<=7?'#ef4444':days<=14?'#f59e0b':GOLD;
-  return (
+  const ts=getTypeStyle(game.type);
+  return(
     <div style={{background:isRGR?'#1c1409':CARD,border:`2px solid ${urgent?'#ef4444':isRGR?ORANGE:past?'#21262d':BORDER}`,borderRadius:12,overflow:'hidden',opacity:past?0.6:1,boxShadow:isRGR&&!past?`0 0 18px ${ORANGE}33`:'none'}}>
-      <div onClick={onToggle} style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:12,background:isRGR&&!past?`linear-gradient(90deg,${ORANGE}11,transparent)`:'none'}}>
+      <div onClick={onToggle} style={{display:'flex',alignItems:'flex-start',padding:'14px 20px',cursor:'pointer',gap:12}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span style={{fontFamily:"'Barlow Condensed'",fontSize:21,fontWeight:800,color:isRGR?ORANGE:TEXT}}>{game.match}</span>
-
+            {game.match?.toLowerCase().includes('scotland')&&<span style={{fontSize:15,fontWeight:900,color:'#ef4444',letterSpacing:1}}>⭐ LEAD THE BOKS ⭐</span>}
+            {urgent&&<span style={{background:'#ef444422',color:'#ef4444',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>⚠ URGENT</span>}
+            {past&&<span style={{background:'#37415122',color:'#6b7280',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>COMPLETED</span>}
+          </div>
+          {/* Editable type badge centered */}
+          <div style={{margin:'6px 0'}}>
             {editingType
-              ? <input autoFocus value={typeVal} onChange={e=>setTypeVal(e.target.value)}
+              ?<input autoFocus value={typeVal} onChange={e=>setTypeVal(e.target.value)}
                   onBlur={()=>{onUpdateType(game.id,typeVal);setEditingType(false);}}
                   onKeyDown={e=>{if(e.key==='Enter'){onUpdateType(game.id,typeVal);setEditingType(false);}}}
                   onClick={e=>e.stopPropagation()}
                   style={{fontSize:12,padding:'2px 10px',borderRadius:20,border:'1px solid #555',background:'#1f2430',color:TEXT,fontWeight:700,width:220}}/>
-              : <span onClick={e=>{e.stopPropagation();setEditingType(true);setTypeVal(game.type||'');}}
-                  style={{background:getTypeStyle(game.type).bg,color:getTypeStyle(game.type).color,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,cursor:'text',border:`1px solid ${getTypeStyle(game.type).color}44`,letterSpacing:0.8,textTransform:'uppercase',display:'block',textAlign:'center',width:'fit-content',margin:'6px auto 0'}}
-                  title="Click to edit">✏️ {game.type}</span>
-            }
-            {urgent&&<span style={{background:'#ef444422',color:'#ef4444',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>⚠ URGENT</span>}
-            {past&&<span style={{background:'#37415122',color:'#6b7280',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>COMPLETED</span>}
+              :<span onClick={e=>{e.stopPropagation();setEditingType(true);setTypeVal(game.type||'');}}
+                  style={{background:ts.bg,color:ts.color,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,cursor:'text',border:`1px solid ${ts.color}44`,letterSpacing:0.8,textTransform:'uppercase',display:'inline-block'}}
+                  title="Click to edit">✏️ {game.type}</span>}
           </div>
-          <div style={{fontSize:16,color:DIM,marginTop:4}}>📅 {fmtDate(game.date)} &nbsp;·&nbsp; 📍 {game.location}</div>
-          <div style={{fontSize:17,fontWeight:700,color:totalAlloc===totalTix&&totalTix>0?'#22c55e':totalTix>0?'#f59e0b':DIM,marginTop:4}}>{totalAlloc}/{totalTix} tickets assigned {totalAlloc===totalTix&&totalTix>0?'✓':totalTix>0?'⚠':''}</div>
+          <div style={{fontSize:16,color:DIM,marginTop:2}}>📅 {fmtDate(game.date)} &nbsp;·&nbsp; 📍 {game.location}</div>
+          <div style={{fontSize:17,fontWeight:700,color:totalAlloc===totalTix&&totalTix>0?'#22c55e':totalTix>0?'#f59e0b':DIM,marginTop:4}}>
+            {totalAlloc}/{totalTix} tickets assigned {totalAlloc===totalTix&&totalTix>0?'✓':totalTix>0?'⚠':''}
+          </div>
           {/* Category pills */}
           <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
             {CATS.map(cat=>{
-              const cd=game.categories[cat.id];
-              const tot=parseInt(cd.total)||0;
-              const alloc=getAlloc(cd);
-              const unassigned=tot-alloc;
+              const cd=game.categories[cat.id],tot=parseInt(cd.total)||0,alloc=getAlloc(cd),unassigned=tot-alloc;
               const shortLabel=cat.label.split('·')[1]?.trim()||cat.label;
               if(tot===0) return <span key={cat.id} style={{fontSize:12,padding:'3px 9px',borderRadius:12,background:'#ffffff08',color:'#555d6b',fontWeight:600}}>{cat.icon} {shortLabel} —</span>;
-              return (
-                <span key={cat.id} style={{fontSize:12,padding:'3px 10px',borderRadius:12,background:cat.color+'22',color:cat.color,fontWeight:700,border:`1px solid ${cat.color}44`}}>
-                  {cat.icon} {alloc}/{tot} {unassigned>0?<span style={{color:'#f59e0b'}}>⚠{unassigned}</span>:<span style={{color:'#22c55e'}}>✓</span>}
-                </span>
-              );
+              return(<span key={cat.id} style={{fontSize:12,padding:'3px 10px',borderRadius:12,background:cat.color+'22',color:cat.color,fontWeight:700,border:`1px solid ${cat.color}44`}}>
+                {cat.icon} {alloc}/{tot} {unassigned>0?<span style={{color:'#f59e0b'}}>⚠{unassigned}</span>:<span style={{color:'#22c55e'}}>✓</span>}
+              </span>);
             })}
           </div>
-          {/* Mini summary of assigned tickets */}
+          {/* Mini allocation summary */}
           {CATS.some(c=>(game.categories[c.id].allocations||[]).length>0)&&(
             <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #ffffff0a'}}>
               {CATS.map(cat=>{
                 const allocs=game.categories[cat.id].allocations||[];
                 if(allocs.length===0) return null;
-                return (
-                  <div key={cat.id} style={{marginBottom:3,display:'flex',flexWrap:'wrap',alignItems:'center',gap:4}}>
-                    <span style={{fontSize:12,color:cat.color,fontWeight:700}}>{cat.icon}</span>
-                    {allocs.map((a,i)=>(
-                      <span key={a.id} style={{fontSize:13,color:a.confirmed?'#22c55e':DIM,fontWeight:a.confirmed?600:400}}>
-                        {a.manager} <strong style={{color:cat.color}}>({a.qty})</strong>{a.confirmed?' ✓':''}{i<allocs.length-1?',':''}
-                      </span>
-                    ))}
-                  </div>
-                );
+                return(<div key={cat.id} style={{marginBottom:3}}>
+                  <span style={{fontSize:12,color:cat.color,fontWeight:700}}>{cat.icon} </span>
+                  {allocs.map((a,i)=><span key={a.id} style={{fontSize:13,color:a.confirmed?'#22c55e':DIM,fontWeight:a.confirmed?600:400}}>{a.manager} <strong style={{color:cat.color}}>({a.qty})</strong>{a.confirmed?' ✓':''}{i<allocs.length-1?', ':''}</span>)}
+                </div>);
               })}
             </div>
           )}
         </div>
-        <div style={{textAlign:'center',minWidth:90}}>
-          {game.match?.toLowerCase().includes('scotland')&&<div style={{fontSize:14,fontWeight:900,color:'#ef4444',letterSpacing:1,marginBottom:4,whiteSpace:'nowrap'}}>⭐ LEAD THE BOKS ⭐</div>}
+        <div style={{textAlign:'center',minWidth:90,flexShrink:0}}>
+          {game.match?.toLowerCase().includes('scotland')&&<div style={{fontSize:13,fontWeight:900,color:'#ef4444',marginBottom:4,whiteSpace:'nowrap'}}>⭐ LEAD THE BOKS ⭐</div>}
           {!past?<div style={{fontFamily:"'Barlow Condensed'",fontSize:34,fontWeight:900,color:dayColor,lineHeight:1}}>{days}<span style={{fontSize:16}}>d</span></div>:<div style={{color:DIM,fontSize:13}}>Done</div>}
           {!past&&<div style={{fontSize:11,color:DIM}}>to game day</div>}
-        </div>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-          <div style={{color:DIM,fontSize:16}}>{expanded?'▲':'▼'}</div>
-          <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this game?'))onDelete();}}
-            style={{background:'#ef444422',color:'#ef4444',fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer',whiteSpace:'nowrap'}}>Delete</button>
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,marginTop:8}}>
+            <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this game?'))onDelete();}} style={{background:'#ef444411',color:'#ef4444',fontWeight:600,fontSize:11,padding:'3px 10px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer'}}>Delete</button>
+          </div>
         </div>
       </div>
       <div style={{height:3,background:CARD2}}><div style={{height:'100%',width:`${pct}%`,background:hasUnassigned&&totalTix>0?'#f59e0b':'#22c55e',transition:'width 0.4s'}}/></div>
@@ -276,35 +261,29 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
             ))}
           </div>
           {/* Summary bar */}
-          <div style={{marginTop:14,background:'#0d1117',borderRadius:10,padding:'12px 16px',border:'1px solid #30363d'}}>
-            <div style={{fontSize:13,color:'#8b949e',marginBottom:8,textTransform:'uppercase',letterSpacing:0.8,fontWeight:700}}>Allocation Summary</div>
-            <div style={{display:'flex',flexWrap:'wrap',gap:12}}>
+          <div style={{marginTop:14,background:BG,borderRadius:10,padding:'12px 16px',border:`1px solid ${BORDER}`}}>
+            <div style={{fontSize:12,color:DIM,marginBottom:8,textTransform:'uppercase',letterSpacing:0.8,fontWeight:700}}>Allocation Summary</div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:10}}>
               {CATS.map(cat=>{
-                const tot=parseInt(game.categories[cat.id].total)||0;
-                const alloc=getAlloc(game.categories[cat.id]);
+                const tot=parseInt(game.categories[cat.id].total)||0,alloc=getAlloc(game.categories[cat.id]);
                 if(tot===0) return null;
-                return (
-                  <div key={cat.id} style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 14px',border:`1px solid ${cat.color}33`}}>
-                    <span style={{fontSize:15}}>{cat.icon}</span>
-                    <div>
-                      <div style={{fontSize:11,color:cat.color,fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>{cat.label.split('·')[1]?.trim()||cat.label}</div>
-                      <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:900,color:alloc===tot?'#22c55e':'#f59e0b'}}>{alloc}/{tot}</div>
-                      <div style={{fontSize:11,color:'#8b949e'}}>{alloc===tot?'✓ Complete':'⚠ '+`${tot-alloc} remaining`}</div>
-                    </div>
+                return(<div key={cat.id} style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 12px',border:`1px solid ${cat.color}33`}}>
+                  <span style={{fontSize:15}}>{cat.icon}</span>
+                  <div>
+                    <div style={{fontSize:10,color:cat.color,fontWeight:700,textTransform:'uppercase'}}>{cat.label.split('·')[1]?.trim()||cat.label}</div>
+                    <div style={{fontFamily:"'Barlow Condensed'",fontSize:22,fontWeight:900,color:alloc===tot?'#22c55e':'#f59e0b'}}>{alloc}/{tot}</div>
+                    <div style={{fontSize:11,color:DIM}}>{alloc===tot?'✓ Complete':'⚠ '+`${tot-alloc} left`}</div>
                   </div>
-                );
+                </div>);
               })}
-              <div style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 14px',border:`1px solid #ffffff22`,marginLeft:'auto'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,background:CARD,borderRadius:8,padding:'8px 14px',border:'1px solid #ffffff22',marginLeft:'auto'}}>
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontSize:11,color:'#8b949e',fontWeight:700,textTransform:'uppercase',letterSpacing:0.5}}>Total</div>
+                  <div style={{fontSize:11,color:DIM,fontWeight:700,textTransform:'uppercase'}}>Total</div>
                   <div style={{fontFamily:"'Barlow Condensed'",fontSize:28,fontWeight:900,color:totalAlloc===totalTix&&totalTix>0?'#22c55e':'#f59e0b'}}>{totalAlloc}/{totalTix}</div>
-                  <div style={{fontSize:11,color:'#8b949e'}}>{totalAlloc===totalTix&&totalTix>0?'✓ All assigned':'tickets assigned'}</div>
+                  <div style={{fontSize:11,color:DIM}}>{totalAlloc===totalTix&&totalTix>0?'✓ All assigned':'assigned'}</div>
                 </div>
               </div>
             </div>
-          </div>
-          <div style={{marginTop:14,display:'flex',justifyContent:'flex-end'}}>
-            <button onClick={onDelete} style={{background:'none',color:'#ef444488',fontWeight:600,fontSize:12,padding:'4px 8px',border:'none',cursor:'pointer',textDecoration:'underline',letterSpacing:0.3}}>Delete this game</button>
           </div>
         </div>
       )}
@@ -313,41 +292,49 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
 }
 
 /* ── EventCard ── */
-function EventCard({event,expanded,onToggle,onUpdateTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType}) {
+function EventCard({event,expanded,onToggle,onUpdateTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType}){
   const [editingType,setEditingType]=useState(false);
   const [typeVal,setTypeVal]=useState(event.type||'');
-  const days=daysUntil(event.date), past=days<0;
-  const total=parseInt(event.total)||0, allocated=getAlloc(event), unassigned=total-allocated;
+  const days=daysUntil(event.date),past=days<0;
+  const total=parseInt(event.total)||0,allocated=getAlloc(event),unassigned=total-allocated;
   const urgent=unassigned>0&&!past&&days<=14;
   const pct=total>0?Math.min(100,(allocated/total)*100):0;
-  const emoji=event.type?.toLowerCase().includes('golf')?'⛳':'⭐';
-  return (
+  const emoji=event.type?.toLowerCase().includes('golf')?'⛳':event.type?.toLowerCase().includes('rugby')?'🌍':'⭐';
+  const ts=getTypeStyle(event.type);
+  return(
     <div style={{background:CARD,border:`1px solid ${urgent?'#ef4444':past?'#21262d':BORDER}`,borderRadius:12,overflow:'hidden',opacity:past?0.6:1}}>
       <div onClick={onToggle} style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:12}}>
         <span style={{fontSize:26}}>{emoji}</span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
             <span style={{fontFamily:"'Barlow Condensed'",fontSize:21,fontWeight:800}}>{event.name}</span>
-            <span style={{background:getTypeStyle(event.type).bg,color:getTypeStyle(event.type).color,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,letterSpacing:0.8,textTransform:'uppercase',display:'block',textAlign:'center',width:'fit-content',margin:'6px auto 0',border:`1px solid ${getTypeStyle(event.type).color}44`}}>{event.type}</span>
             {urgent&&<span style={{background:'#ef444422',color:'#ef4444',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>⚠ URGENT</span>}
           </div>
-          <div style={{fontSize:16,color:DIM,marginTop:4}}>📅 {fmtDate(event.date)}{event.location?<> &nbsp;·&nbsp; 📍 {event.location}</>:''} &nbsp;·&nbsp; {allocated}/{total} assigned</div>
+          <div style={{margin:'4px 0'}}>
+            {editingType
+              ?<input autoFocus value={typeVal} onChange={e=>setTypeVal(e.target.value)}
+                  onBlur={()=>{onUpdateType(event.id,typeVal);setEditingType(false);}}
+                  onKeyDown={e=>{if(e.key==='Enter'){onUpdateType(event.id,typeVal);setEditingType(false);}}}
+                  onClick={e=>e.stopPropagation()}
+                  style={{fontSize:12,padding:'2px 10px',borderRadius:20,border:'1px solid #555',background:'#1f2430',color:TEXT,fontWeight:700,width:200}}/>
+              :<span onClick={e=>{e.stopPropagation();setEditingType(true);setTypeVal(event.type||'');}}
+                  style={{background:ts.bg,color:ts.color,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,cursor:'text',border:`1px solid ${ts.color}44`,letterSpacing:0.8,textTransform:'uppercase',display:'inline-block'}}
+                  title="Click to edit">✏️ {event.type}</span>}
+          </div>
+          <div style={{fontSize:16,color:DIM,marginTop:2}}>📅 {fmtDate(event.date)}{event.location?<> &nbsp;·&nbsp; 📍 {event.location}</>:''} &nbsp;·&nbsp; {allocated}/{total} assigned</div>
         </div>
-        <div style={{textAlign:'center',minWidth:72}}>
+        <div style={{textAlign:'center',minWidth:72,flexShrink:0}}>
           {!past?<div style={{fontFamily:"'Barlow Condensed'",fontSize:34,fontWeight:900,color:days<=7?'#ef4444':days<=14?'#f59e0b':GOLD,lineHeight:1}}>{days}<span style={{fontSize:16}}>d</span></div>:<div style={{color:DIM,fontSize:13}}>Done</div>}
+          <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this event?'))onDelete();}} style={{background:'#ef444411',color:'#ef4444',fontWeight:600,fontSize:11,padding:'3px 10px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer',marginTop:6}}>Delete</button>
         </div>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-          <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this game?'))onDelete();}} style={{background:'#ef444411',color:'#ef4444',fontWeight:600,fontSize:11,padding:'3px 8px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer'}}>Delete</button>
-          <div style={{color:DIM,fontSize:16}}>{expanded?'▲':'▼'}</div>
-        </div>
+        <div style={{color:DIM,fontSize:16}}>{expanded?'▲':'▼'}</div>
       </div>
       <div style={{height:3,background:CARD2}}><div style={{height:'100%',width:`${pct}%`,background:unassigned>0&&total>0?'#f59e0b':'#22c55e'}}/></div>
       {expanded&&(
         <div style={{padding:'16px 20px',borderTop:`1px solid ${BORDER}`}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
             <span style={{fontSize:14,color:DIM}}>Total invitations:</span>
-            <input type="number" value={event.total} min="0" placeholder="0"
-              onChange={e=>onUpdateTotal(event.id,e.target.value)}
+            <input type="number" value={event.total} min="0" placeholder="0" onChange={e=>onUpdateTotal(event.id,e.target.value)}
               style={{width:70,background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:6,padding:'6px 9px',fontSize:14}}/>
             {unassigned>0&&total>0&&<span style={{color:'#f59e0b',fontSize:13,fontWeight:700}}>⚠ {unassigned} unassigned</span>}
             {total>0&&unassigned===0&&<span style={{color:'#22c55e',fontSize:13,fontWeight:700}}>✓ All assigned</span>}
@@ -358,9 +345,9 @@ function EventCard({event,expanded,onToggle,onUpdateTotal,onAdd,onToggleConfirm,
           {(event.allocations||[]).map(a=>(
             <AllocRow key={a.id} alloc={a} accentColor={GOLD}
               onToggle={()=>onToggleConfirm(event.id,a.id)}
-              onDelete={()=>onDeleteAlloc(event.id,a.id)}/>
+              onDelete={()=>onDeleteAlloc(event.id,a.id)}
+              onEdit={(form)=>onToggleConfirm(event.id,a.id)}/>
           ))}
-
         </div>
       )}
     </div>
@@ -368,23 +355,28 @@ function EventCard({event,expanded,onToggle,onUpdateTotal,onAdd,onToggleConfirm,
 }
 
 /* ── InlineForm ── */
-function InlineForm({fields,onSave,onCancel,title}) {
-  const [form,setForm]=useState(Object.fromEntries(fields.map(f=>[f.key,''])));
-  return (
+function InlineForm({fields,onSave,onCancel,title,accent}){
+  const [form,setForm]=useState(Object.fromEntries(fields.map(f=>[f.key,f.default||''])));
+  const ac=accent||GRN;
+  return(
     <div style={{background:CARD2,border:`1px solid ${BORDER}`,borderRadius:12,padding:20,marginBottom:16}}>
-      <div style={{fontFamily:"'Barlow Condensed'",fontSize:17,fontWeight:700,marginBottom:14,letterSpacing:0.5}}>{title}</div>
+      <div style={{fontFamily:"'Barlow Condensed'",fontSize:17,fontWeight:700,marginBottom:14,letterSpacing:0.5,color:ac}}>{title}</div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:10}}>
         {fields.map(f=>(
-          <div key={f.key}>
-            <div style={{fontSize:12,color:DIM,marginBottom:4,textTransform:'uppercase',letterSpacing:0.6}}>{f.label}</div>
-            <input type={f.type||'text'} value={form[f.key]} placeholder={f.placeholder||''}
-              onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
-              style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:6,padding:'7px 10px',fontSize:13}}/>
+          <div key={f.key} style={{gridColumn:f.full?'1/-1':'auto'}}>
+            <div style={{fontSize:11,color:DIM,marginBottom:4,textTransform:'uppercase',letterSpacing:0.6}}>{f.label}</div>
+            {f.options
+              ?<select value={form[f.key]} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))} style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:6,padding:'7px 10px',fontSize:13}}>
+                <option value=''>Select...</option>
+                {f.options.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+              :<input type={f.type||'text'} value={form[f.key]} placeholder={f.placeholder||''} onChange={e=>setForm(x=>({...x,[f.key]:e.target.value}))}
+                style={{width:'100%',background:BG,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:6,padding:'7px 10px',fontSize:13}}/>}
           </div>
         ))}
       </div>
       <div style={{display:'flex',gap:8,marginTop:14}}>
-        <button onClick={()=>onSave(form)} style={{background:GRN,color:'#fff',fontWeight:700,fontSize:13,padding:'7px 18px',borderRadius:7,border:'none',cursor:'pointer'}}>Save</button>
+        <button onClick={()=>onSave(form)} style={{background:ac,color:'#fff',fontWeight:700,fontSize:13,padding:'7px 18px',borderRadius:7,border:'none',cursor:'pointer'}}>Save</button>
         <button onClick={onCancel} style={{background:CARD,color:DIM,fontWeight:600,fontSize:13,padding:'7px 18px',borderRadius:7,border:`1px solid ${BORDER}`,cursor:'pointer'}}>Cancel</button>
       </div>
     </div>
@@ -392,18 +384,20 @@ function InlineForm({fields,onSave,onCancel,title}) {
 }
 
 /* ── App ── */
-function App() {
+function App(){
   const [data,setData]=useState({games:INIT_GAMES,events:INIT_EVENTS,viewing:INIT_VIEWING});
   const [loaded,setLoaded]=useState(false);
   const [tab,setTab]=useState('games');
   const [expanded,setExpanded]=useState(null);
   const [modal,setModal]=useState(null);
   const [addGame,setAddGame]=useState(false);
+  const [addRGR,setAddRGR]=useState(false);
   const [addEvent,setAddEvent]=useState(false);
+  const [addBokTown,setAddBokTown]=useState(false);
 
   useEffect(()=>{
-    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e/latest',{headers:{'X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'}}
-    ).then(r=>r.json()).then(j=>{if(j.record)setData(j.record);}).catch(()=>{}).finally(()=>setLoaded(true));
+    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e/latest',{headers:{'X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'}})
+      .then(r=>r.json()).then(j=>{if(j.record)setData(j.record);}).catch(()=>{}).finally(()=>setLoaded(true));
   },[]);
 
   useEffect(()=>{
@@ -415,12 +409,11 @@ function App() {
   const upEvent=(id,fn)=>setData(d=>({...d,events:(d.events||[]).map(e=>e.id===id?fn(e):e)}));
   const upViewing=(id,fn)=>setData(d=>({...d,viewing:(d.viewing||[]).map(v=>v.id===id?fn(v):v)}));
 
-  const updateGameType=(gId,val)=>upGame(gId,g=>({...g,type:val}));
-  const editAllocGame=(gId,cId,aId,form)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],allocations:g.categories[cId].allocations.map(a=>a.id===aId?{...a,...form}:a)}}}));
-  const updateEventType=(eId,val)=>upEvent(eId,e=>({...e,type:val}));
-  const updateViewingType=(vId,val)=>upViewing(vId,v=>({...v,type:val}));
   const setTotal=(gId,cId,val)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],total:val}}}));
   const upEvTotal=(eId,val)=>upEvent(eId,e=>({...e,total:val}));
+  const updateGameType=(gId,val)=>upGame(gId,g=>({...g,type:val}));
+  const updateEventType=(eId,val)=>upEvent(eId,e=>({...e,type:val}));
+  const editAllocGame=(gId,cId,aId,form)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],allocations:g.categories[cId].allocations.map(a=>a.id===aId?{...a,...form}:a)}}}));
 
   const saveAlloc=(alloc)=>{
     if(!alloc.manager||!alloc.qty)return;
@@ -440,17 +433,17 @@ function App() {
   const sortedGames=[...data.games].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const sortedEvents=[...(data.events||[])].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const sortedViewing=[...(data.viewing||[])].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const rgrGames=sortedGames.filter(g=>g.type?.toLowerCase().includes('rgr'));
 
   const totalTix=sortedGames.reduce((s,g)=>s+CATS.reduce((ss,c)=>ss+(parseInt(g.categories[c.id].total)||0),0),0);
   const totalAlloc=sortedGames.reduce((s,g)=>s+CATS.reduce((ss,c)=>ss+getAlloc(g.categories[c.id]),0),0);
   const urgentCount=sortedGames.filter(g=>{const d=daysUntil(g.date);return d>=0&&d<=14&&CATS.some(c=>(parseInt(g.categories[c.id].total)||0)>getAlloc(g.categories[c.id]));}).length;
   const upcoming=sortedGames.filter(g=>daysUntil(g.date)>=0).length;
 
-  return (
+  return(
     <div style={{fontFamily:"'DM Sans',sans-serif",background:BG,minHeight:'100vh',color:TEXT}}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap');*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}input,button{font-family:'DM Sans',sans-serif}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap');*{box-sizing:border-box;margin:0;padding:0}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}input,button,select{font-family:'DM Sans',sans-serif}`}</style>
 
-      {/* HEADER */}
       <header style={{background:CARD,borderBottom:`1px solid ${BORDER}`,padding:'0 24px',position:'sticky',top:0,zIndex:20}}>
         <div style={{maxWidth:1100,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'space-between',height:62}}>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -468,7 +461,6 @@ function App() {
       </header>
 
       <div style={{maxWidth:1100,margin:'0 auto',padding:'24px 24px 60px'}}>
-
         {/* STATS */}
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:28}}>
           {[{label:'Total Tickets',val:totalTix,color:TEXT},{label:'Assigned',val:totalAlloc,color:'#22c55e'},{label:'Unassigned',val:totalTix-totalAlloc,color:totalTix-totalAlloc>0?'#f59e0b':'#22c55e'},{label:'Upcoming Games',val:upcoming,color:GOLD}].map(s=>(
@@ -482,29 +474,31 @@ function App() {
         {/* TABS */}
         <div style={{display:'flex',gap:2,borderBottom:`1px solid ${BORDER}`,marginBottom:20}}>
           {[{id:'games',label:'🏟  GAMES'},{id:'events',label:'⭐  SPECIAL EVENTS'},{id:'viewing',label:'🍺  CASTLE LAGER BOKTOWNS'}].map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              style={{background:'none',color:tab===t.id?GRN:DIM,fontSize:13,fontWeight:700,padding:'10px 22px',borderBottom:tab===t.id?`2px solid ${GRN}`:'2px solid transparent',marginBottom:-1,letterSpacing:0.5,border:'none',cursor:'pointer'}}>
-              {t.label}
-            </button>
+            <button key={t.id} onClick={()=>setTab(t.id)} style={{background:'none',color:tab===t.id?GRN:DIM,fontSize:13,fontWeight:700,padding:'10px 22px',borderBottom:tab===t.id?`2px solid ${GRN}`:'2px solid transparent',marginBottom:-1,letterSpacing:0.5,border:'none',cursor:'pointer'}}>{t.label}</button>
           ))}
         </div>
 
         {/* GAMES */}
         {tab==='games'&&(
           <div>
-            <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
+            <div style={{display:'flex',gap:8,justifyContent:'flex-end',marginBottom:16}}>
               <button onClick={()=>setAddGame(true)} style={{background:GRN,color:'#fff',fontWeight:700,fontSize:13,padding:'9px 18px',borderRadius:9,border:'none',cursor:'pointer'}}>+ Add Game</button>
+              <button onClick={()=>setAddRGR(true)} style={{background:ORANGE,color:'#fff',fontWeight:700,fontSize:13,padding:'9px 18px',borderRadius:9,border:'none',cursor:'pointer'}}>🔥 + Add RGR Game</button>
             </div>
-            {addGame&&<InlineForm title="NEW GAME" fields={[{label:'Date',key:'date',type:'date'},{label:'Match',key:'match',placeholder:'e.g. vs France'},{label:'Location',key:'location',placeholder:'Ellis Park, Johannesburg'},{label:'Competition / Type',key:'type',placeholder:'Nations Championship'}]}
+            {addGame&&<InlineForm title="NEW GAME" accent={GRN} fields={[{label:'Date',key:'date',type:'date'},{label:'Match',key:'match',placeholder:'e.g. vs France'},{label:'Location',key:'location',placeholder:'Ellis Park, Johannesburg'},{label:'Competition / Type',key:'type',placeholder:'Nations Championship'}]}
               onSave={f=>{if(!f.date||!f.match)return;setData(d=>({...d,games:[...d.games,{id:uid(),...f,categories:mkCats()}]}));setAddGame(false);}}
               onCancel={()=>setAddGame(false)}/>}
+            {addRGR&&<InlineForm title="🔥 NEW RGR GAME" accent={ORANGE} fields={[{label:'Date',key:'date',type:'date'},{label:'Match',key:'match',placeholder:'Springboks vs All Blacks',default:'Springboks vs All Blacks'},{label:'Location / Venue',key:'location',placeholder:'e.g. Ellis Park, Johannesburg'}]}
+              onSave={f=>{if(!f.date||!f.match)return;setData(d=>({...d,games:[...d.games,{id:uid(),...f,type:"Rugby's Greatest Rivalry (RGR)",categories:mkCats()}]}));setAddRGR(false);}}
+              onCancel={()=>setAddRGR(false)}/>}
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               {sortedGames.map(game=>(
                 <GameCard key={game.id} game={game} expanded={expanded===game.id}
                   onToggle={()=>setExpanded(expanded===game.id?null:game.id)}
                   onSetTotal={setTotal} onAdd={(gId,cId)=>setModal({gameId:gId,catId:cId})}
                   onToggleConfirm={togConfGame} onDeleteAlloc={delAllocGame}
-                  onDelete={()=>setData(d=>({...d,games:d.games.filter(g=>g.id!==game.id)}))} onUpdateType={updateGameType} onEditAlloc={editAllocGame}/>
+                  onDelete={()=>setData(d=>({...d,games:d.games.filter(g=>g.id!==game.id)}))}
+                  onUpdateType={updateGameType} onEditAlloc={editAllocGame}/>
               ))}
             </div>
           </div>
@@ -516,7 +510,7 @@ function App() {
             <div style={{display:'flex',justifyContent:'flex-end',marginBottom:16}}>
               <button onClick={()=>setAddEvent(true)} style={{background:GOLD,color:'#000',fontWeight:700,fontSize:13,padding:'9px 18px',borderRadius:9,border:'none',cursor:'pointer'}}>+ Add Special Event</button>
             </div>
-            {addEvent&&<InlineForm title="NEW SPECIAL EVENT" fields={[{label:'Date',key:'date',type:'date'},{label:'Event Name',key:'name',placeholder:'Golf Day 2026'},{label:'Type',key:'type',placeholder:'Golf Day / VIP / Dinner'},{label:'Location',key:'location',placeholder:'The Forum Hyde Park, Sandton'},{label:'Total Invitations',key:'total',type:'number',placeholder:'0'},{label:'Notes / Details',key:'notes',placeholder:'e.g. R3800/ticket · Smart Casual'}]}
+            {addEvent&&<InlineForm title="NEW SPECIAL EVENT" accent={GOLD} fields={[{label:'Date',key:'date',type:'date'},{label:'Event Name',key:'name',placeholder:'Golf Day 2026'},{label:'Type',key:'type',placeholder:'Golf Day / VIP / Dinner'},{label:'Location',key:'location',placeholder:'The Forum Hyde Park, Sandton'},{label:'Total Invitations',key:'total',type:'number',placeholder:'0'},{label:'Notes / Details',key:'notes',placeholder:'e.g. R3800/ticket',full:true}]}
               onSave={f=>{if(!f.date||!f.name)return;setData(d=>({...d,events:[...(d.events||[]),{id:uid(),...f,allocations:[]}]}));setAddEvent(false);}}
               onCancel={()=>setAddEvent(false)}/>}
             {sortedEvents.length===0&&!addEvent&&<div style={{textAlign:'center',color:DIM,padding:'56px 0',fontSize:14}}><div style={{fontSize:40,marginBottom:12}}>⛳</div>No special events yet.</div>}
@@ -526,18 +520,30 @@ function App() {
                   onToggle={()=>setExpanded(expanded===ev.id?null:ev.id)}
                   onUpdateTotal={upEvTotal} onAdd={eId=>setModal({eventId:eId})}
                   onToggleConfirm={togConfEvent} onDeleteAlloc={delAllocEvent}
-                  onDelete={()=>setData(d=>({...d,events:(d.events||[]).filter(e=>e.id!==ev.id)}))} onUpdateType={updateEventType}/>
+                  onDelete={()=>setData(d=>({...d,events:(d.events||[]).filter(e=>e.id!==ev.id)}))}
+                  onUpdateType={updateEventType}/>
               ))}
             </div>
           </div>
         )}
 
-        {/* VIEWING LOCATIONS */}
+        {/* BOKTOWNS */}
         {tab==='viewing'&&(
           <div>
-            <div style={{background:'#1a1d27',border:`1px solid ${BORDER}`,borderRadius:10,padding:'14px 18px',marginBottom:16,fontSize:14,color:DIM}}>
-              🍺 Castle Lager BokTowns — remote viewing locations (big screens) for RGR games. <strong style={{color:TEXT}}>20 tickets per game</strong>, assigned to dealerships.
+            <div style={{background:'#1a1d27',border:`1px solid ${BORDER}`,borderRadius:10,padding:'14px 18px',marginBottom:16,fontSize:14,color:DIM,display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
+              <span>🍺 Castle Lager BokTowns — remote viewing (big screens) for RGR games. Assign to dealerships.</span>
+              <button onClick={()=>setAddBokTown(true)} style={{background:ORANGE,color:'#fff',fontWeight:700,fontSize:13,padding:'8px 16px',borderRadius:8,border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>🍺 + Add BokTown</button>
             </div>
+            {addBokTown&&<InlineForm title="🍺 NEW CASTLE LAGER BOKTOWN" accent={ORANGE}
+              fields={[
+                {label:'Linked RGR Game',key:'game',options:rgrGames.map(g=>g.match)},
+                {label:'BokTown Date',key:'date',type:'date'},
+                {label:'BokTown Location / Venue',key:'location',placeholder:'e.g. Soweto, Johannesburg'},
+                {label:'Number of Tickets',key:'tickets',type:'number',placeholder:'20',default:'20'},
+                {label:'Notes (Dealership / Instructions)',key:'notes',placeholder:'e.g. Bedfordview Dealership',full:true},
+              ]}
+              onSave={f=>{if(!f.location)return;setData(d=>({...d,viewing:[...(d.viewing||[]),{id:uid(),date:f.date,match:f.game||'RGR Game',location:f.location,tickets:f.tickets||'20',allocations:[],notes:f.notes}]}));setAddBokTown(false);}}
+              onCancel={()=>setAddBokTown(false)}/>}
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
               {sortedViewing.map(v=>{
                 const days=daysUntil(v.date),past=days<0;
@@ -545,28 +551,23 @@ function App() {
                 const total=parseInt(v.tickets)||0,unassigned=total-allocated;
                 const urgent=unassigned>0&&!past&&days<=14;
                 const pct=total>0?Math.min(100,(allocated/total)*100):0;
-                return (
+                return(
                   <div key={v.id} style={{background:'#1c1409',border:`2px solid ${urgent?'#ef4444':ORANGE}`,borderRadius:12,overflow:'hidden',opacity:past?0.6:1,boxShadow:`0 0 14px ${ORANGE}22`}}>
                     <div onClick={()=>setExpanded(expanded===v.id?null:v.id)} style={{display:'flex',alignItems:'center',padding:'14px 20px',cursor:'pointer',gap:12,background:`linear-gradient(90deg,${ORANGE}11,transparent)`}}>
                       <span style={{fontSize:24}}>📺</span>
                       <div style={{flex:1}}>
                         <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                           <span style={{fontFamily:"'Barlow Condensed'",fontSize:20,fontWeight:800,color:ORANGE}}>{v.match}</span>
-                          <span style={{background:ORANGE+'22',color:ORANGE,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,letterSpacing:0.8,textTransform:'uppercase',display:'block',textAlign:'center',width:'fit-content',margin:'6px auto 0',border:`1px solid ${ORANGE}44`}}>🍺 CASTLE LAGER BOKTOWN</span>
+                          <span style={{background:ORANGE+'22',color:ORANGE,fontSize:12,padding:'4px 14px',borderRadius:20,fontWeight:800,letterSpacing:0.8,textTransform:'uppercase',border:`1px solid ${ORANGE}44`}}>🍺 CASTLE LAGER BOKTOWN</span>
                           {urgent&&<span style={{background:'#ef444422',color:'#ef4444',fontSize:10,padding:'2px 8px',borderRadius:20,fontWeight:700}}>⚠ URGENT</span>}
                         </div>
                         <div style={{fontSize:16,color:DIM,marginTop:4}}>📅 {fmtDate(v.date)} &nbsp;·&nbsp; 📍 {v.location} &nbsp;·&nbsp; {allocated}/{total} assigned</div>
                       </div>
-                      <div style={{textAlign:'center',minWidth:72}}>
+                      <div style={{textAlign:'center',minWidth:72,flexShrink:0}}>
                         {!past?<div style={{fontFamily:"'Barlow Condensed'",fontSize:34,fontWeight:900,color:days<=7?'#ef4444':days<=14?'#f59e0b':ORANGE,lineHeight:1}}>{days}<span style={{fontSize:16}}>d</span></div>:<div style={{color:DIM,fontSize:13}}>Done</div>}
+                        <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this BokTown?'))setData(d=>({...d,viewing:(d.viewing||[]).filter(x=>x.id!==v.id)}));}} style={{background:'#ef444411',color:'#ef4444',fontWeight:600,fontSize:11,padding:'3px 10px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer',marginTop:6}}>Delete</button>
                       </div>
-                      <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-                        <button onClick={e=>{e.stopPropagation();if(window.confirm('Delete this BokTown?'))setData(d=>({...d,viewing:(d.viewing||[]).filter(x=>x.id!==v.id)}));}} style={{background:'#ef444411',color:'#ef4444',fontWeight:600,fontSize:11,padding:'3px 8px',borderRadius:5,border:'1px solid #ef444433',cursor:'pointer'}}>Delete</button>
-                        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6}}>
-                        <div style={{color:DIM,fontSize:16}}>{expanded===v.id?'▲':'▼'}</div>
-
-                      </div>
-                      </div>
+                      <div style={{color:DIM,fontSize:16}}>{expanded===v.id?'▲':'▼'}</div>
                     </div>
                     <div style={{height:3,background:CARD2}}><div style={{height:'100%',width:`${pct}%`,background:unassigned>0?'#f59e0b':'#22c55e'}}/></div>
                     {expanded===v.id&&(
@@ -584,11 +585,13 @@ function App() {
                           {total>0&&unassigned===0&&<span style={{color:'#22c55e',fontSize:13,fontWeight:700}}>✓ All assigned</span>}
                           <button onClick={()=>setModal({viewingId:v.id})} style={{marginLeft:'auto',background:ORANGE+'22',color:ORANGE,fontWeight:700,fontSize:13,padding:'6px 16px',borderRadius:20,border:'none',cursor:'pointer'}}>+ Allocate</button>
                         </div>
+                        {v.notes&&<div style={{fontSize:13,color:'#6b7280',marginBottom:12,padding:'6px 10px',background:'#ffffff08',borderRadius:6,fontStyle:'italic'}}>ℹ {v.notes}</div>}
                         {total>0&&<div style={{height:4,background:CARD2,borderRadius:4,marginBottom:12,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:unassigned>0?'#f59e0b':'#22c55e',transition:'width 0.3s'}}/></div>}
                         {(v.allocations||[]).map(a=>(
                           <AllocRow key={a.id} alloc={a} accentColor={ORANGE}
                             onToggle={()=>togConfViewing(v.id,a.id)}
-                            onDelete={()=>delAllocViewing(v.id,a.id)}/>
+                            onDelete={()=>delAllocViewing(v.id,a.id)}
+                            onEdit={(form)=>upViewing(v.id,x=>({...x,allocations:(x.allocations||[]).map(b=>b.id===a.id?{...b,...form}:b)}))}/>
                         ))}
                       </div>
                     )}
