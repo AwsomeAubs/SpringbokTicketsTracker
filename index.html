@@ -1,5 +1,31 @@
-import { useState, useEffect } from "react";
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Springbok Ticket Tracker | Hyundai SA</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0d1117;font-family:'DM Sans',sans-serif;color:#e6edf3}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0d1117}
+    ::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px}
+    input[type=number]::-webkit-inner-spin-button{opacity:0.4}
+    input,button,select{font-family:'DM Sans',sans-serif}
+  </style>
+</head>
+<body>
+  <div style="background:#00843D;color:#fff;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:16px;">
+    <span>🏉 SPRINGBOK TICKET TRACKER | Hyundai SA</span>
+    <a href="#" onclick="(function(){var b=new Blob([document.documentElement.outerHTML],{type:'text/html'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='springbok-tickets-tracker.html';a.click();return false;})()" 
+      style="color:#FFB612;font-weight:800;text-decoration:none;border:2px solid #FFB612;padding:3px 14px;border-radius:20px;">⬇ Download Latest HTML</a>
+  </div>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const {useState,useEffect}=React;
 const GRN='#00843D',GOLD='#FFB612',BG='#0d1117',CARD='#161b22',CARD2='#1f2430',BORDER='#30363d',TEXT='#e6edf3',DIM='#8b949e',ORANGE='#f97316';
 
 const CATS=[
@@ -466,7 +492,7 @@ function InlineForm({fields,onSave,onCancel,title,accent}){
   );
 }
 
-export default function App(){
+function App(){
   const [data,setData]=useState({games:INIT_GAMES,events:INIT_EVENTS,viewing:INIT_VIEWING});
   const [loaded,setLoaded]=useState(false);
   const [tab,setTab]=useState('games');
@@ -478,14 +504,12 @@ export default function App(){
   const [addBokTown,setAddBokTown]=useState(false);
 
   useEffect(()=>{
-    (async()=>{
-      try{const r=await window.storage.get('hsa-springbok-v14');if(r)setData(JSON.parse(r.value));}catch{}
-      setLoaded(true);
-    })();
+    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e/latest',{headers:{'X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'}})
+      .then(r=>r.json()).then(j=>{if(j.record)setData(j.record);}).catch(()=>{}).finally(()=>setLoaded(true));
   },[]);
   useEffect(()=>{
     if(!loaded)return;
-    window.storage.set('hsa-springbok-v14',JSON.stringify(data)).catch(()=>{});
+    fetch('https://api.jsonbin.io/v3/b/6a27076dda38895dfe9b707e',{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':'$2a$10$dOZKKCuLHzhMtWxIkuxeDeAD9vUvWJ10TZA16dxR/l9e4TbiiPYNi'},body:JSON.stringify(data)}).catch(()=>{});
   },[data,loaded]);
 
   const upGame=(id,fn)=>setData(d=>({...d,games:d.games.map(g=>g.id===id?fn(g):g)}));
@@ -550,13 +574,7 @@ export default function App(){
           <div style={{display:'flex',alignItems:'center',gap:10}}>
             {urgentCount>0&&<div style={{background:'#ef4444',color:'#fff',fontSize:12,fontWeight:700,padding:'4px 12px',borderRadius:20}}>⚠ {urgentCount} URGENT</div>}
             <div style={{fontSize:13,color:DIM}}><span style={{width:8,height:8,borderRadius:'50%',background:'#22c55e',display:'inline-block',marginRight:6}}/>{new Date().toLocaleDateString('en-ZA',{day:'numeric',month:'short',year:'numeric'})}</div>
-            <button onClick={()=>{
-              const blob=new Blob([document.documentElement.outerHTML],{type:'text/html'});
-              const a=document.createElement('a');
-              a.href=URL.createObjectURL(blob);
-              a.download='springbok-tickets-tracker.html';
-              a.click();
-            }} style={{background:GRN+'22',color:GRN,fontWeight:700,fontSize:12,padding:'6px 14px',borderRadius:8,border:`1px solid ${GRN}44`,cursor:'pointer',whiteSpace:'nowrap',border:'none'}}>⬇ Download HTML</button>
+
           </div>
         </div>
       </header>
@@ -734,3 +752,8 @@ export default function App(){
     </div>
   );
 }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
