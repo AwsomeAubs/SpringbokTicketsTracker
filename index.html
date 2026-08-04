@@ -18,11 +18,6 @@
   </style>
 </head>
 <body>
-  <div style="background:#00843D;color:#fff;padding:7px 16px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:16px;">
-    <span>🏉 SPRINGBOK TICKET TRACKER | Hyundai SA</span>
-    <a href="#" onclick="(function(){var b=new Blob([document.documentElement.outerHTML],{type:'text/html'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='springbok-tickets-tracker.html';a.click();return false;})()" 
-      style="color:#FFB612;font-weight:800;text-decoration:none;border:2px solid #FFB612;padding:3px 14px;border-radius:20px;">⬇ Download Latest HTML</a>
-  </div>
   <div id="root"></div>
   <script type="text/babel" data-presets="react">
     const {useState,useEffect}=React;
@@ -86,8 +81,8 @@ const INIT_VIEWING=[
 function AllocModal({target,onSave,onClose}){
   const [form,setForm]=useState({manager:'',dept:'',qty:'',notes:''});
   const cat=target?.catId?CATS.find(c=>c.id===target.catId):null;
-  const accent=cat?cat.color:target?.viewingId?ORANGE:GOLD;
-  const title=cat?`${cat.icon}  ${cat.label}`:target?.viewingId?'📺  Allocate to Dealership':'⭐  Allocate Invitation';
+  const accent=cat?cat.color:target?.customCatId?target.color||'#9333ea':target?.viewingId?ORANGE:GOLD;
+  const title=cat?`${cat.icon}  ${cat.label}`:target?.customCatId?`✏️  ${target.label||'Custom Category'}`:target?.viewingId?'📺  Allocate to Dealership':'⭐  Allocate Invitation';
   return(
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:200}}>
       <div style={{background:CARD,border:`1px solid ${BORDER}`,borderRadius:16,padding:28,width:440,maxWidth:'94vw'}}>
@@ -192,7 +187,7 @@ function EditField({value,onSave,style={},inputStyle={}}){
     style={{background:'#1f2430',border:'1px solid #555',color:'#e6edf3',borderRadius:5,padding:'2px 8px',fontSize:'inherit',fontWeight:'inherit',...inputStyle}}/>;
 }
 
-function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType,onUpdateField,onEditAlloc,onUpdateCatMeta,onAddCustomCat,onUpdateCustomCat,onDeleteCustomCat}){
+function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDeleteAlloc,onDelete,onUpdateType,onUpdateField,onEditAlloc,onUpdateCatMeta,onAddCustomCat,onUpdateCustomCat,onDeleteCustomCat,onDeleteCustomCatAlloc,onEditCustomCatAlloc,setModal}){
   const [editingType,setEditingType]=useState(false);
   const [typeVal,setTypeVal]=useState(game.type||'');
   const days=daysUntil(game.date),past=days<0;
@@ -289,20 +284,14 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
             ))}
             {/* Custom categories */}
             {(game.customCats||[]).map(cc=>(
-              <div key={cc.id} style={{background:BG,border:`1px solid ${cc.color||'#6b7280'}44`,borderRadius:10,padding:'12px 14px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
-                  <EditField value={cc.label} onSave={v=>onUpdateCustomCat(game.id,cc.id,'label',v)}
-                    style={{fontSize:13,fontWeight:700,color:cc.color||'#6b7280',textTransform:'uppercase',letterSpacing:0.6}}
-                    inputStyle={{fontSize:12,width:160}}/>
-                  <button onClick={()=>onDeleteCustomCat(game.id,cc.id)} style={{marginLeft:'auto',background:'#ef444411',color:'#ef4444',fontSize:11,padding:'3px 8px',borderRadius:15,border:'1px solid #ef444433',cursor:'pointer'}}>✕ Remove</button>
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                  <span style={{fontSize:14,color:DIM}}>Total:</span>
-                  <input type="number" value={cc.total||''} min="0" placeholder="0"
-                    onChange={e=>onUpdateCustomCat(game.id,cc.id,'total',e.target.value)}
-                    style={{width:62,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:5,padding:'4px 8px',fontSize:14}}/>
-                </div>
-              </div>
+              <CustomCatSection key={cc.id} cc={cc}
+                onRename={v=>onUpdateCustomCat(game.id,cc.id,'label',v)}
+                onDelete={()=>onDeleteCustomCat(game.id,cc.id)}
+                onUpdateTotal={v=>onUpdateCustomCat(game.id,cc.id,'total',v)}
+                onAddAlloc={()=>setModal({gameId:game.id,customCatId:cc.id,color:cc.color||'#9333ea',label:cc.label})}
+                onToggleConfirm={aId=>onEditCustomCatAlloc&&onEditCustomCatAlloc(game.id,cc.id,aId,{...(cc.allocations||[]).find(a=>a.id===aId),confirmed:!((cc.allocations||[]).find(a=>a.id===aId)||{}).confirmed})}
+                onDeleteAlloc={aId=>onDeleteCustomCatAlloc&&onDeleteCustomCatAlloc(game.id,cc.id,aId)}
+                onEditAlloc={(aId,form)=>onEditCustomCatAlloc&&onEditCustomCatAlloc(game.id,cc.id,aId,form)}/>
             ))}
             {/* Hidden cats - restore button */}
             {CATS.filter(c=>(game.catMeta||{})[c.id]?.hidden).map(cat=>(
@@ -346,29 +335,37 @@ function GameCard({game,expanded,onToggle,onSetTotal,onAdd,onToggleConfirm,onDel
 }
 
 function CustomCatSection({cc,onRename,onDelete,onUpdateTotal,onAddAlloc,onToggleConfirm,onDeleteAlloc,onEditAlloc}){
-  const total=parseInt(cc.total)||0,allocated=(cc.allocations||[]).reduce((s,a)=>s+(parseInt(a.qty)||0),0),unassigned=total-allocated;
-  const pct=total>0?Math.min(100,(allocated/total)*100):0;
-  const colors=['#9333ea','#ea8c33','#1d6fa4','#e91e8c','#16a34a','#dc2626','#0891b2','#d97706'];
   const color=cc.color||'#9333ea';
+  const total=parseInt(cc.total)||0;
+  const allocated=(cc.allocations||[]).reduce((s,a)=>s+(parseInt(a.qty)||0),0);
+  const unassigned=total-allocated;
+  const pct=total>0?Math.min(100,(allocated/total)*100):0;
   return(
     <div style={{background:BG,border:`1px solid ${unassigned>0&&total>0?color+'44':BORDER}`,borderRadius:10,padding:'12px 14px'}}>
-      <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:10}}>
+      {/* Header row - identical to standard CatSection */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
         <EditField value={cc.label} onSave={onRename}
-          style={{fontSize:13,fontWeight:700,color,textTransform:'uppercase',letterSpacing:0.6,flex:1}}
-          inputStyle={{fontSize:12,fontWeight:700,width:180}}/>
-        <div style={{display:'flex',gap:4}}>
+          style={{fontSize:13,fontWeight:700,color,textTransform:'uppercase',letterSpacing:0.6}}
+          inputStyle={{fontSize:12,fontWeight:700,width:150,textTransform:'uppercase'}}/>
+        <div style={{display:'flex',gap:4,flexShrink:0}}>
           <button onClick={onAddAlloc} style={{background:color+'22',color,fontSize:12,fontWeight:700,padding:'4px 10px',borderRadius:20,border:'none',cursor:'pointer'}}>+ Add</button>
-          <button onClick={onDelete} style={{background:'#ef444411',color:'#ef4444',fontSize:11,padding:'4px 8px',borderRadius:20,border:'1px solid #ef444433',cursor:'pointer'}}>✕ Remove</button>
+          <button onClick={onDelete} style={{background:'#ef444411',color:'#ef4444',fontSize:11,fontWeight:600,padding:'4px 8px',borderRadius:20,border:'1px solid #ef444433',cursor:'pointer'}}>✕ Hide</button>
         </div>
       </div>
+      {/* Total row */}
       <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:total>0?8:6}}>
         <span style={{fontSize:14,color:DIM}}>Total:</span>
-        <input type="number" value={cc.total||''} min="0" placeholder="0" onChange={e=>onUpdateTotal(e.target.value)}
+        <input type="number" value={cc.total||''} min="0" placeholder="0"
+          onChange={e=>onUpdateTotal(e.target.value)}
           style={{width:62,background:CARD,border:`1px solid ${BORDER}`,color:TEXT,borderRadius:5,padding:'4px 8px',fontSize:14}}/>
         {total>0&&unassigned>0&&<span style={{color:'#f59e0b',fontSize:13,fontWeight:700}}>⚠ {unassigned} unassigned</span>}
         {total>0&&unassigned===0&&<span style={{color:'#22c55e',fontSize:13,fontWeight:700}}>✓ All assigned</span>}
       </div>
-      {total>0&&<div style={{height:3,background:CARD2,borderRadius:4,marginBottom:10,overflow:'hidden'}}><div style={{height:'100%',width:`${pct}%`,background:unassigned>0?'#f59e0b':'#22c55e',borderRadius:4}}/></div>}
+      {/* Progress bar */}
+      {total>0&&<div style={{height:3,background:CARD2,borderRadius:4,marginBottom:10,overflow:'hidden'}}>
+        <div style={{height:'100%',width:`${pct}%`,background:unassigned>0?'#f59e0b':'#22c55e',borderRadius:4,transition:'width 0.3s'}}/>
+      </div>}
+      {/* Allocations */}
       {(cc.allocations||[]).map(a=>(
         <AllocRow key={a.id} alloc={a} accentColor={color}
           onToggle={()=>onToggleConfirm(a.id)}
@@ -530,13 +527,16 @@ function App(){
   const editEventCustomCatAlloc=(eId,ccId,aId,form)=>upEvent(eId,e=>({...e,customCats:(e.customCats||[]).map(cc=>cc.id===ccId?{...cc,allocations:(cc.allocations||[]).map(a=>a.id===aId?{...a,...form}:a)}:cc)}));
   const editAllocGame=(gId,cId,aId,form)=>upGame(gId,g=>({...g,categories:{...g.categories,[cId]:{...g.categories[cId],allocations:g.categories[cId].allocations.map(a=>a.id===aId?{...a,...form}:a)}}}));
   const updateCatMeta=(gId,cId,field,val)=>upGame(gId,g=>({...g,catMeta:{...(g.catMeta||mkGameCatMeta()),[cId]:{...(g.catMeta||mkGameCatMeta())[cId],[field]:val}}}));
-  const addCustomCat=(gId)=>upGame(gId,g=>({...g,customCats:[...(g.customCats||[]),{id:uid(),label:'New Category',color:'#6b7280',total:'',allocations:[]}]}));
+  const addCustomCat=(gId)=>upGame(gId,g=>({...g,customCats:[...(g.customCats||[]),{id:uid(),label:'New Category',color:'#9333ea',total:'',allocations:[]}]}));
   const updateCustomCat=(gId,ccId,field,val)=>upGame(gId,g=>({...g,customCats:(g.customCats||[]).map(cc=>cc.id===ccId?{...cc,[field]:val}:cc)}));
   const deleteCustomCat=(gId,ccId)=>upGame(gId,g=>({...g,customCats:(g.customCats||[]).filter(cc=>cc.id!==ccId)}));
+  const deleteCustomCatAlloc=(gId,ccId,aId)=>upGame(gId,g=>({...g,customCats:(g.customCats||[]).map(cc=>cc.id===ccId?{...cc,allocations:(cc.allocations||[]).filter(a=>a.id!==aId)}:cc)}));
+  const editCustomCatAlloc=(gId,ccId,aId,form)=>upGame(gId,g=>({...g,customCats:(g.customCats||[]).map(cc=>cc.id===ccId?{...cc,allocations:(cc.allocations||[]).map(a=>a.id===aId?{...a,...form}:a)}:cc)}));
 
   const saveAlloc=(alloc)=>{
     if(!alloc.manager||!alloc.qty)return;
     if(modal.catId) upGame(modal.gameId,g=>({...g,categories:{...g.categories,[modal.catId]:{...g.categories[modal.catId],allocations:[...g.categories[modal.catId].allocations,alloc]}}}));
+    else if(modal.customCatId) upGame(modal.gameId,g=>({...g,customCats:(g.customCats||[]).map(cc=>cc.id===modal.customCatId?{...cc,allocations:[...(cc.allocations||[]),alloc]}:cc)}));
     else if(modal.eventId) upEvent(modal.eventId,e=>({...e,allocations:[...(e.allocations||[]),alloc]}));
     else if(modal.viewingId) upViewing(modal.viewingId,v=>({...v,allocations:[...(v.allocations||[]),alloc]}));
     setModal(null);
@@ -616,7 +616,9 @@ function App(){
                   onDelete={()=>setData(d=>({...d,games:d.games.filter(g=>g.id!==game.id)}))}
                   onUpdateType={updateGameType} onUpdateField={updateGameField} onEditAlloc={editAllocGame}
                   onUpdateCatMeta={updateCatMeta} onAddCustomCat={addCustomCat}
-                  onUpdateCustomCat={updateCustomCat} onDeleteCustomCat={deleteCustomCat}/>
+                  onUpdateCustomCat={updateCustomCat} onDeleteCustomCat={deleteCustomCat}
+                  onDeleteCustomCatAlloc={deleteCustomCatAlloc} onEditCustomCatAlloc={editCustomCatAlloc}
+                  setModal={setModal}/>
               ))}
             </div>
           </div>
